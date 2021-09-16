@@ -1,4 +1,4 @@
-q#!/usr/bin/env ruby
+#!/usr/bin/env ruby
 # frozen_string_literal: true
 
 require 'fileutils'
