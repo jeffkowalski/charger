@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'bundler/setup'
 require 'fileutils'
 require 'influxdb'
 require 'logger'
@@ -38,7 +39,7 @@ class Charger < Thor
   class_option :verbose, type: :boolean, aliases: '-v', desc: 'increase verbosity'
 
   desc 'scan', ''
-  method_option :dry_run, type: :boolean, aliases: '-n', desc: "don't log to database"
+  method_option :dry_run, type: :boolean, aliases: '-n', desc: "don't send notifications"
   def scan
     setup_logger
 
@@ -53,6 +54,7 @@ class Charger < Thor
     range = {}
 
     credentials[:cars].each_key do |name|
+      @logger.debug "retrieving #{name}"
       result = influxdb.query "select last(value) from charging_state where display_name='#{name}'"
       state[name] = result[0]['values'][0]['last']
       result = influxdb.query "select last(value) from est_battery_range where display_name='#{name}'"
@@ -69,19 +71,22 @@ class Charger < Thor
                     (state[other] == 'Stopped' && credentials[:cars][other][:limit] > 100)
 
         prefs[:notify].each do |email|
+          @logger.info "alerting #{email} to plug in '#{name}'"
+          next if options[:dry_run]
+
           Mail.deliver do
             to email
             from credentials[:sender]
             subject 'Please plug in your car'
             body "Your car has only #{range[name]} miles of range.  Please plug it in to charge."
           end
-        rescue StandardError => e
-          @logger.error e
         end
 
         break
       end
     end
+  rescue StandardError => e
+    @logger.error e
   end
 
   default_task :scan
