@@ -5,8 +5,6 @@ require 'rubygems'
 require 'bundler/setup'
 Bundler.require(:default)
 
-require_relative '../botbase/botbase'
-
 class Charger < ScannerBotBase
   no_commands do
     def main
